@@ -44,4 +44,4 @@ def send_reset_email(email, token):
     )
 
     mail.send(msg)
-    return "Email sent"  
+    return "Email sent" ,200
