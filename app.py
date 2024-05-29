@@ -7,7 +7,18 @@ import os
 import dotenv
 from flask_moment import Moment
 import datetime
+from flask_login import (
+    LoginManager,
+    UserMixin,
+    login_user,
+    login_required,
+    logout_user,
+    current_user,
+)
 
+# Initialize login manager
+login_manager = LoginManager()
+login_manager.init_app(app)
 app.secret_key = os.getenv("SECRET_KEY")
 
 # Ensure database and table exist
@@ -16,7 +27,32 @@ with app.app_context():
 moment = Moment(app)
 
 
+class User(UserMixin):
+    def __init__(self, id, username, email):
+        self.id = id
+        self.username = username
+        self.email = email
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    cursor = mysql.connection.cursor()
+    cursor.execute("SELECT * FROM Users WHERE id=%s", (user_id,))
+    user = cursor.fetchone()
+    cursor.close()
+    if user:
+        return User(user["id"], user["username"], user["email"])
+    return None
+
+
+# Define HomePage
+@login_required
 @app.route("/")
+def home():
+    return "Hello? This is a Dummy HomePage.. The app is under development so hold your horses!!"
+
+
+@app.route("/users")
 def users():
     cursor = mysql.connection.cursor()
     cursor.execute("SELECT id, username, email FROM Users")
@@ -57,6 +93,8 @@ def login():
         abort(400)
     email = request.json["email"]
     password = request.json["password"]
+    remember = request.json["remember"]
+    # print(remember) # Debugging
 
     cursor = mysql.connection.cursor()
     cursor.execute("SELECT * FROM Users WHERE email=%s", (email,))
@@ -64,10 +102,9 @@ def login():
     cursor.close()
 
     if user and check_password_hash(user["password"], password):
-        session["loggedin"] = True
-        session["id"] = user["id"]
-        session["username"] = user["username"]
-        return jsonify({"message": "Login successful"}), 200
+        user = User(user["id"], user["username"], user["email"])
+        login_user(user, remember=remember,duration=datetime.timedelta(days=365))
+        return jsonify({"message": "Logged in successfully."}), 200
     else:
         return jsonify({"message": "Invalid email or password"}), 401
 
@@ -115,6 +152,14 @@ def reset_token(token):
         return jsonify({"message": "Your password has been updated."})
 
     return render_template("reset_password.html")
+
+
+# Logout route
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return jsonify({"message": "Logged out successfully."})
 
 
 if __name__ == "__main__":
