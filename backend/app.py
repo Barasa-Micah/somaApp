@@ -5,7 +5,6 @@ from mail import mail, generate_reset_token, send_reset_email
 from itsdangerous import URLSafeTimedSerializer
 import os
 import dotenv
-from flask_moment import Moment
 import datetime
 from flask_login import (
     LoginManager,
@@ -24,7 +23,6 @@ app.secret_key = os.getenv("SECRET_KEY")
 # Ensure database and table exist
 with app.app_context():
     init_db()
-moment = Moment(app)
 
 
 class User(UserMixin):
@@ -103,7 +101,7 @@ def login():
 
     if user and check_password_hash(user["password"], password):
         user = User(user["id"], user["username"], user["email"])
-        login_user(user, remember=remember,duration=datetime.timedelta(days=365))
+        login_user(user, remember=remember, duration=datetime.timedelta(days=365))
         return jsonify({"message": "Logged in successfully."}), 200
     else:
         return jsonify({"message": "Invalid email or password"}), 401
